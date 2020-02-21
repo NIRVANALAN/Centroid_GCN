@@ -1,4 +1,5 @@
-import argparse, time
+import argparse
+import time
 import numpy as np
 import networkx as nx
 import torch
@@ -7,9 +8,10 @@ import torch.nn.functional as F
 from dgl import DGLGraph
 from dgl.data import register_data_args, load_data
 
-from models import GCN
+from models import create_model
 
-from cluster import kmeans
+from cluster import *  # import cluster
+
 
 def evaluate(model, features, labels, mask):
     model.eval()
@@ -20,6 +22,7 @@ def evaluate(model, features, labels, mask):
         _, indices = torch.max(logits, dim=1)
         correct = torch.sum(indices == labels)
         return correct.item() * 1.0 / len(labels)
+
 
 def main(args):
     # load and preprocess dataset
@@ -77,15 +80,19 @@ def main(args):
         norm = norm.cuda()
     g.ndata['norm'] = norm.unsqueeze(1)
 
-    # create GCN model
-    model = GCN(g,
-                in_feats,
-                args.n_hidden,
-                n_classes,
-                args.n_layers,
-                F.relu,
-                args.dropout)
-
+    # # create GCN model
+    heads = ([args.num_heads] * args.num_layers) + [args.num_out_heads]
+    model = create_model(args.arch, g,
+                         num_layers=args.num_layers,
+                         in_dim=in_feats,
+                         num_hidden=args.num_hidden,
+                         num_classes=n_classes,
+                         heads=heads,
+                         activation=F.elu,
+                         feat_drop=args.in_drop,
+                         attn_drop=args.attn_drop,
+                         negative_slope=args.negative_slope,
+                         residual=args.residual)
     if cuda:
         model.cuda()
     loss_fcn = torch.nn.CrossEntropyLoss()
@@ -112,8 +119,8 @@ def main(args):
         if epoch >= 3:
             dur.append(time.time() - t0)
         if epoch % cluster_interval == 0:
-            cluster_ids_x, cluster_centers = kmeans(
-                X=logits, num_clusters=args.cluster_number, distance='cosine', device=device)
+            cluster_ids_x, cluster_centers = cluster(
+                X=logits, num_clusters=args.cluster_number, distance='cosine', device=device, method=args.cluster_method)  # TODO: fix kmeans overflow bug
             pass
         acc = evaluate(model, features, labels, val_mask)
         print("Epoch {:05d} | Time(s) {:.4f} | Loss {:.4f} | Accuracy {:.4f} | "
@@ -129,26 +136,53 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='GCN')
     register_data_args(parser)
     parser.add_argument("--dropout", type=float, default=0.5,
-            help="dropout probability")
+                        help="dropout probability")
     parser.add_argument("--gpu", type=int, default=0,
-            help="gpu")
+                        help="gpu")
     parser.add_argument("--lr", type=float, default=1e-2,
-            help="learning rate")
+                        help="learning rate")
     parser.add_argument("--n-epochs", type=int, default=200,
-            help="number of training epochs")
+                        help="number of training epochs")
     parser.add_argument("--n-hidden", type=int, default=16,
-            help="number of hidden gcn units")
+                        help="number of hidden gcn units")
     parser.add_argument("--n-layers", type=int, default=1,
-            help="number of hidden gcn layers")
+                        help="number of hidden gcn layers")
     parser.add_argument("--weight-decay", type=float, default=5e-4,
-            help="Weight for L2 loss")
+                        help="Weight for L2 loss")
     parser.add_argument("--self-loop", action='store_true',
-            help="graph self-loop (default=False)")
+                        help="graph self-loop (default=False)")
+
+    parser.add_argument("--cluster_method", type=str, default='kmeans',
+                        help="Cluster method, default=kmeans")
     parser.add_argument("--cluster_interval", type=int, default=3,
-            help="interval of calculating cluster centroid")
+                        help="interval of calculating cluster centroid")
     parser.add_argument("--cluster_number", type=int, default=30,
-            help="interval of calculating cluster centroid")
-    parser.set_defaults(self_loop=False)
+                        help="interval of calculating cluster centroid")
+
+    parser.add_argument("--in-drop", type=float, default=.6,
+                        help="input feature dropout")
+    parser.add_argument("--attn-drop", type=float, default=.6,
+                        help="attention dropout")
+    parser.add_argument("--num-heads", type=int, default=8,
+                        help="number of hidden attention heads")
+    parser.add_argument("--num-out-heads", type=int, default=1,
+                        help="number of output attention heads")
+    parser.add_argument("--num-layers", type=int, default=1,
+                        help="number of hidden layers")
+    parser.add_argument("--num-hidden", type=int, default=8,
+                        help="number of hidden units")
+    parser.add_argument('--negative-slope', type=float, default=0.2,
+                        help="the negative slope of leaky relu")
+    parser.add_argument("--residual", action="store_true", default=False,
+                        help="use residual connection")
+    # MODEL
+    parser.add_argument("--arch", type=str, default='gcn',
+                        help='arch of gcn model, default: gcn')
+    # parser.add_argument("--num-classes", type=int, default=1500,
+    #                     help="Number of clusters, for Reddit 1500 by default")
+    # parser.add_argument("--batch_size", type=int, default=5000,
+    #                     help="Batch size")
+    # parser.set_defaults(self_loop=False)
     args = parser.parse_args()
     print(args)
 
