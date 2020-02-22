@@ -3,6 +3,7 @@
 # pylint: disable= no-member, arguments-differ, invalid-name
 import torch as th
 from torch import nn
+import torch.nn.functional as F
 
 import dgl.function as fn
 from dgl.nn.pytorch import edge_softmax
@@ -78,6 +79,7 @@ class CentroidGATConv(nn.Module):
             self.register_buffer('res_fc', None)
         self.reset_parameters()
         self.activation = activation
+        self.centroid_activation = F.tanh
 
     def reset_parameters(self):
         """Reinitialize learnable parameters."""
@@ -88,7 +90,7 @@ class CentroidGATConv(nn.Module):
         if isinstance(self.res_fc, nn.Linear):
             nn.init.xavier_normal_(self.res_fc.weight, gain=gain)
 
-    def forward(self, graph, feat, cluster_id, cluster_centroid):
+    def forward(self, graph, feat, cluster_id=None, cluster_centroid=None):
         r"""Compute graph attention network layer.
 
         Parameters
@@ -134,4 +136,6 @@ class CentroidGATConv(nn.Module):
         # activation
         if self.activation:
             rst = self.activation(rst)
-        return rst
+        #
+        # return rst, self.centroid_activation(rst)
+        return rst, rst

@@ -94,6 +94,8 @@ def main(args):
                          attn_drop=args.attn_drop,
                          negative_slope=args.negative_slope,
                          residual=args.residual)
+
+    print(model)
     if cuda:
         model.cuda()
     loss_fcn = torch.nn.CrossEntropyLoss()
@@ -123,7 +125,7 @@ def main(args):
         loss = loss_fcn(logits[train_mask], labels[train_mask])
 
         optimizer.zero_grad()
-        loss.backward()
+        loss.backward(retain_graph=True)
         optimizer.step()
 
         if epoch >= 3:
