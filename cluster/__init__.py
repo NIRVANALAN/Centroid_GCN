@@ -1,9 +1,10 @@
-from .kmeans import kmeans
-
+from .kmeans_torch import kmeans as kmeans_torch
+from .lloyd.kmeans import lloyd
 
 cluster_methods = {
-    'kmeans': kmeans
-}
+    'kmeans': kmeans_torch,
+    # 'kmeans_torch': kmeans_torch,
+}  # density peak, DBSCAN,
 
 
 def cluster(X, num_clusters, device, distance='cosine', method='kmeans') -> tuple:
@@ -12,8 +13,9 @@ def cluster(X, num_clusters, device, distance='cosine', method='kmeans') -> tupl
     """
     assert method in cluster_methods
     cluster_ids_x, cluster_centers = cluster_methods[method](
-        X, num_clusters, distance, device=device
+        X, num_clusters, device=device, distance=distance
     )
     return cluster_ids_x, cluster_centers
 
-__all__ = ['cluster'] # ! from cluster import *
+
+__all__ = ['cluster']  # ! from cluster import *

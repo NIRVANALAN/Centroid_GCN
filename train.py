@@ -1,5 +1,6 @@
 import argparse
 import time
+import pdb
 import numpy as np
 import networkx as nx
 import torch
@@ -16,7 +17,7 @@ from cluster import *  # import cluster
 def evaluate(model, features, labels, mask):
     model.eval()
     with torch.no_grad():
-        logits = model(features)
+        logits, _ = model(features)
         logits = logits[mask]
         labels = labels[mask]
         _, indices = torch.max(logits, dim=1)
@@ -112,13 +113,13 @@ def main(args):
         # cluster
         # forward
         if epoch < args.init_feat_epoch:
-            logits = model(features)
+            logits, hidden_h = model(features)
         else:
             if epoch == args.init_feat_epoch or epoch % cluster_interval == 0:
                 cluster_ids_x, cluster_centers = cluster(
-                    X=logits, num_clusters=args.cluster_number, distance='cosine', device=device, method=args.cluster_method)  # TODO: fix kmeans overflow bug
+                    X=hidden_h, num_clusters=args.cluster_number, distance='cosine', device=device, method=args.cluster_method)  # TODO: fix kmeans overflow bug
                 pass
-            logits = model(features, cluster_ids_x, cluster_centers)
+            logits, hidden_h = model(features, cluster_ids_x, cluster_centers)
         loss = loss_fcn(logits[train_mask], labels[train_mask])
 
         optimizer.zero_grad()

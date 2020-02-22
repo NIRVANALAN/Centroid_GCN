@@ -109,13 +109,10 @@ class CentroidGATConv(nn.Module):
         h = self.feat_drop(feat)
         feat = self.fc(h).view(-1, self._num_heads, self._out_feats)
         if cluster_id is not None:
-            import pdb
-            pdb.set_trace()
-            el = (cluster_centroid[cluster_id] *
+            el = (cluster_centroid[cluster_id].view(-1, self._num_heads, self._out_feats) *
                   self.attn_l).sum(dim=-1).unsqueeze(-1)
-            er = (cluster_centroid[cluster_id] *
+            er = (cluster_centroid[cluster_id].view(-1, self._num_heads, self._out_feats) *
                   self.attn_r).sum(dim=-1).unsqueeze(-1)
-            pass
         else:
             el = (feat * self.attn_l).sum(dim=-1).unsqueeze(-1)
             er = (feat * self.attn_r).sum(dim=-1).unsqueeze(-1)
@@ -124,7 +121,8 @@ class CentroidGATConv(nn.Module):
         graph.apply_edges(fn.u_add_v('el', 'er', 'e'))
         e = self.leaky_relu(graph.edata.pop('e'))
         # compute softmax
-        graph.edata['a'] = self.attn_drop(edge_softmax(graph, e))
+        graph.edata['a'] = self.attn_drop(
+            edge_softmax(graph, e))  # scale after softmax
         # message passing
         graph.update_all(fn.u_mul_e('ft', 'a', 'm'),
                          fn.sum('m', 'ft'))

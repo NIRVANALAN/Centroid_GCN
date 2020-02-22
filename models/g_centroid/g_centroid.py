@@ -55,4 +55,4 @@ class GATCentroid(nn.Module):
         # output projection
         logits = self.gat_layers[-1](self.g, h,
                                      cluster_id, cluster_centroid).mean(1)
-        return logits
+        return logits, h # n * 64
