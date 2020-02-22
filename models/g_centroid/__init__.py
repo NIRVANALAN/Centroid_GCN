@@ -1,1 +1,1 @@
-from .g_centroid import GAT_Centroid
+from .g_centroid import GATCentroid

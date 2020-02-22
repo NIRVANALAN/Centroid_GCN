@@ -1,9 +1,11 @@
+import pdb
 import torch
 import numpy as np
 from kmeans_pytorch import kmeans
 
 # data
 data_size, dims, num_clusters = 1000, 2, 3
+pdb.set_trace()
 if torch.cuda.is_available():
     device = torch.device('cuda')
     x = torch.randn(data_size, dims).to(device)

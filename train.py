@@ -102,14 +102,23 @@ def main(args):
                                  lr=args.lr,
                                  weight_decay=args.weight_decay)
 
-    # initialize graph
+    # Step 1. initilization with GCN
+    # init graph feat
     dur = []
     for epoch in range(args.n_epochs):
         model.train()
         if epoch >= 3:
             t0 = time.time()
+        # cluster
         # forward
-        logits = model(features)
+        if epoch < args.init_feat_epoch:
+            logits = model(features)
+        else:
+            if epoch == args.init_feat_epoch or epoch % cluster_interval == 0:
+                cluster_ids_x, cluster_centers = cluster(
+                    X=logits, num_clusters=args.cluster_number, distance='cosine', device=device, method=args.cluster_method)  # TODO: fix kmeans overflow bug
+                pass
+            logits = model(features, cluster_ids_x, cluster_centers)
         loss = loss_fcn(logits[train_mask], labels[train_mask])
 
         optimizer.zero_grad()
@@ -118,10 +127,6 @@ def main(args):
 
         if epoch >= 3:
             dur.append(time.time() - t0)
-        if epoch % cluster_interval == 0:
-            cluster_ids_x, cluster_centers = cluster(
-                X=logits, num_clusters=args.cluster_number, distance='cosine', device=device, method=args.cluster_method)  # TODO: fix kmeans overflow bug
-            pass
         acc = evaluate(model, features, labels, val_mask)
         print("Epoch {:05d} | Time(s) {:.4f} | Loss {:.4f} | Accuracy {:.4f} | "
               "ETputs(KTEPS) {:.2f}". format(epoch, np.mean(dur), loss.item(),
@@ -175,6 +180,9 @@ if __name__ == '__main__':
                         help="the negative slope of leaky relu")
     parser.add_argument("--residual", action="store_true", default=False,
                         help="use residual connection")
+
+    parser.add_argument("--init-feat-epoch", type=int, default=10,
+                        help="stage 1 training epoch number")
     # MODEL
     parser.add_argument("--arch", type=str, default='gcn',
                         help='arch of gcn model, default: gcn')
@@ -182,7 +190,6 @@ if __name__ == '__main__':
     #                     help="Number of clusters, for Reddit 1500 by default")
     # parser.add_argument("--batch_size", type=int, default=5000,
     #                     help="Batch size")
-    # parser.set_defaults(self_loop=False)
     args = parser.parse_args()
     print(args)
 

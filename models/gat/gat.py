@@ -13,7 +13,7 @@ import dgl.function as fn
 from dgl.nn.pytorch import edge_softmax, GATConv
 
 
-class GraphCentroid(nn.Module):
+class GAT(nn.Module):
     def __init__(self,
                  g,
                  num_layers,
@@ -26,7 +26,7 @@ class GraphCentroid(nn.Module):
                  attn_drop,
                  negative_slope,
                  residual):
-        super(GraphCentroid, self).__init__()
+        super(GAT, self).__init__()
         self.g = g
         self.num_layers = num_layers
         self.gat_layers = nn.ModuleList()
