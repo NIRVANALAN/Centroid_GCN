@@ -119,7 +119,7 @@ def main(args):
         else:
             if epoch == args.init_feat_epoch or epoch % cluster_interval == 0:
                 cluster_ids_x, cluster_centers = cluster(
-                    X=hidden_h, num_clusters=args.cluster_number, distance='cosine', device=device, method=args.cluster_method)  # TODO: fix kmeans overflow bug
+                    X=hidden_h, num_clusters=args.cluster_number, distance='cosine', device=device, method=args.cluster_method)  # TODO: fix zero norm embedding
                 pass
             logits, hidden_h = model(features, cluster_ids_x, cluster_centers)
         loss = loss_fcn(logits[train_mask], labels[train_mask])

@@ -55,5 +55,5 @@ class GATCentroid(nn.Module):
             h = h.flatten(1)
             embedding = embedding.flatten(1)
         # output projection
-        logits = self.gat_layers[-1](self.g, h)[0].mean(1)
+        logits = self.gat_layers[-1](self.g, h).mean(1)
         return logits, embedding  # n * 64
