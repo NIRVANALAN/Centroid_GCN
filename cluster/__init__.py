@@ -7,13 +7,13 @@ cluster_methods = {
 }  # density peak, DBSCAN,
 
 
-def cluster(X, num_clusters, device, distance='cosine', method='kmeans') -> tuple:
+def cluster(X, num_clusters, distance='cosine', method='kmeans') -> tuple:
     """ Embedding Custer
     return cluster_id, cluster_centroid
     """
     assert method in cluster_methods
     cluster_ids_x, cluster_centers = cluster_methods[method](
-        X, num_clusters, device=device, distance=distance
+        X, num_clusters, distance=distance
     )
     return cluster_ids_x, cluster_centers
 

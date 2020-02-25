@@ -119,13 +119,15 @@ def main(args):
         else:
             if epoch == args.init_feat_epoch or epoch % cluster_interval == 0:
                 cluster_ids_x, cluster_centers = cluster(
-                    X=hidden_h, num_clusters=args.cluster_number, distance='cosine', device=device, method=args.cluster_method)  # TODO: fix zero norm embedding
+                    X=hidden_h.detach(), num_clusters=args.cluster_number, distance='cosine', method=args.cluster_method)  # TODO: fix zero norm embedding
                 pass
             logits, hidden_h = model(features, cluster_ids_x, cluster_centers)
+            # logits, hidden_h = model(features)
         loss = loss_fcn(logits[train_mask], labels[train_mask])
 
         optimizer.zero_grad()
-        loss.backward(retain_graph=True)
+        # loss.backward(retain_graph=True)
+        loss.backward(retain_graph=False)
         optimizer.step()
 
         if epoch >= 3:
@@ -162,9 +164,9 @@ if __name__ == '__main__':
 
     parser.add_argument("--cluster_method", type=str, default='kmeans',
                         help="Cluster method, default=kmeans")
-    parser.add_argument("--cluster_interval", type=int, default=3,
+    parser.add_argument("--cluster-interval", type=int, default=3,
                         help="interval of calculating cluster centroid")
-    parser.add_argument("--cluster_number", type=int, default=30,
+    parser.add_argument("--cluster-number", type=int, default=30,
                         help="interval of calculating cluster centroid")
 
     parser.add_argument("--in-drop", type=float, default=.6,

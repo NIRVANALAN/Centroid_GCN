@@ -111,14 +111,14 @@ class CentroidGATConv(nn.Module):
         h = self.feat_drop(feat)
         feat = self.fc(h).view(-1, self._num_heads, self._out_feats)
         if cluster_id is not None:
-            # el = (cluster_centroid[cluster_id].view(-1, self._num_heads, self._out_feats) *
-            #       self.attn_l).sum(dim=-1).unsqueeze(-1)
-            # import pdb
-            # pdb.set_trace()
-            el = (cluster_centroid.view(-1, self._num_heads, self._out_feats) *
+            cluster_centroid = cluster_centroid.view(
+                -1, self._num_heads, self._out_feats)
+            el = (cluster_centroid *
                   self.attn_l)[cluster_id].sum(dim=-1).unsqueeze(-1)
-            er = (cluster_centroid.view(-1, self._num_heads, self._out_feats) *
+            er = (cluster_centroid *
                   self.attn_r)[cluster_id].sum(dim=-1).unsqueeze(-1)
+            # el = (feat * self.attn_l).sum(dim=-1).unsqueeze(-1)
+            # er = (feat * self.attn_r).sum(dim=-1).unsqueeze(-1)
         else:
             el = (feat * self.attn_l).sum(dim=-1).unsqueeze(-1)
             er = (feat * self.attn_r).sum(dim=-1).unsqueeze(-1)
