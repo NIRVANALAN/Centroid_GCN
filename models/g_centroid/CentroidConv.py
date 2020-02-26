@@ -90,7 +90,7 @@ class CentroidGATConv(nn.Module):
         if isinstance(self.res_fc, nn.Linear):
             nn.init.xavier_normal_(self.res_fc.weight, gain=gain)
 
-    def forward(self, graph, feat, cluster_id=None, cluster_centroid=None):
+    def forward(self, graph, feat, cluster_id=None, cluster_centroid=None, stat=None):
         r"""Compute graph attention network layer.
 
         Parameters
@@ -113,8 +113,10 @@ class CentroidGATConv(nn.Module):
         if cluster_id is not None:
             cluster_centroid = cluster_centroid.view(
                 -1, self._num_heads, self._out_feats)
-            el = (cluster_centroid *
-                  self.attn_l)[cluster_id].sum(dim=-1).unsqueeze(-1)
+            el = cluster_centroid * self.attn_l
+            el = el[cluster_id].sum(-1).unsqueeze(-1)
+            # el = (cluster_centroid *
+            #       self.attn_l)[cluster_id].sum(dim=-1).unsqueeze(-1)
             er = (cluster_centroid *
                   self.attn_r)[cluster_id].sum(dim=-1).unsqueeze(-1)
             # el = (feat * self.attn_l).sum(dim=-1).unsqueeze(-1)
@@ -129,6 +131,8 @@ class CentroidGATConv(nn.Module):
         # compute softmax
         graph.edata['a'] = self.attn_drop(
             edge_softmax(graph, e))  # scale after softmax
+        if stat is not None:
+            stat.append(graph.edata['a'].detach().cpu().numpy())
         # message passing
         graph.update_all(fn.u_mul_e('ft', 'a', 'm'),
                          fn.sum('m', 'ft'))
@@ -139,8 +143,10 @@ class CentroidGATConv(nn.Module):
             embedding = embedding + resval
         # activation
         if self.activation:
-            # return self.activation(embedding), self.activation(embedding)
-            return self.activation(embedding), embedding
+            return self.activation(embedding), self.activation(embedding)
+            # return self.activation(embedding), embedding
             # return rst, embedding
+        elif stat is not None:
+            return embedding, stat
         else:
             return embedding  # output logits

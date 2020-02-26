@@ -47,11 +47,11 @@ class GATCentroid(nn.Module):
             num_hidden * heads[-2], num_classes, heads[-1],
             feat_drop, attn_drop, negative_slope, residual, None))
 
-    def forward(self, feat, cluster_id=None, cluster_centroid=None):
+    def forward(self, feat, cluster_id=None, cluster_centroid=None, stat=None):
         h = feat
         for l in range(self.num_layers):
             h, embedding = self.gat_layers[l](self.g, h, cluster_id,
-                                              cluster_centroid)
+                                              cluster_centroid, stat)
             h = h.flatten(1)
             embedding = embedding.flatten(1)
         # output projection

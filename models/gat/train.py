@@ -40,6 +40,7 @@ def main(args):
     data = load_data(args)
     features = torch.FloatTensor(data.features)
     labels = torch.LongTensor(data.labels)
+    np.save(f'{args.dataset}_labels', labels)
     if hasattr(torch, 'BoolTensor'):
         train_mask = torch.BoolTensor(data.train_mask)
         val_mask = torch.BoolTensor(data.val_mask)
@@ -127,7 +128,7 @@ def main(args):
         else:
             val_acc = evaluate(model, features, labels, val_mask)
             if args.early_stop:
-                if stopper.step(val_acc, model):   
+                if stopper.step(val_acc, model):
                     break
 
         print("Epoch {:05d} | Time(s) {:.4f} | Loss {:.4f} | TrainAcc {:.4f} |"

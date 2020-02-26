@@ -30,6 +30,7 @@ def main(args):
     data = load_data(args)
     features = torch.FloatTensor(data.features)
     labels = torch.LongTensor(data.labels)
+    np.save(f'{args.dataset}_labels', labels)
     if hasattr(torch, 'BoolTensor'):
         train_mask = torch.BoolTensor(data.train_mask)
         val_mask = torch.BoolTensor(data.val_mask)
@@ -108,6 +109,7 @@ def main(args):
     # Step 1. initilization with GCN
     # init graph feat
     dur = []
+    centroid_emb, hidden_emb = [], []
     for epoch in range(args.n_epochs):
         model.train()
         if epoch >= 3:
@@ -120,6 +122,8 @@ def main(args):
             if epoch == args.init_feat_epoch or epoch % cluster_interval == 0:
                 cluster_ids_x, cluster_centers = cluster(
                     X=hidden_h.detach(), num_clusters=args.cluster_number, distance='cosine', method=args.cluster_method)  # TODO: fix zero norm embedding
+                centroid_emb.append(cluster_centers.detach().cpu().numpy())
+                hidden_emb.append(hidden_h.detach().cpu().numpy())
                 pass
             logits, hidden_h = model(features, cluster_ids_x, cluster_centers)
             # logits, hidden_h = model(features)
@@ -140,6 +144,8 @@ def main(args):
     print()
     acc = evaluate(model, features, labels, test_mask)
     print("Test accuracy {:.2%}".format(acc))
+    np.save(f'{args.dataset}_centroid_emb', np.array(centroid_emb))
+    np.save(f'{args.dataset}_hidden_emb', np.array(hidden_emb))
 
 
 if __name__ == '__main__':
