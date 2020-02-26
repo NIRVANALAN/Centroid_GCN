@@ -1,4 +1,6 @@
 import argparse
+import pathlib
+from pathlib import Path
 import time
 import pdb
 import numpy as np
@@ -110,6 +112,7 @@ def main(args):
     # init graph feat
     dur = []
     centroid_emb, hidden_emb = [], []
+    att = []
     for epoch in range(args.n_epochs):
         model.train()
         if epoch >= 3:
@@ -125,7 +128,8 @@ def main(args):
                 centroid_emb.append(cluster_centers.detach().cpu().numpy())
                 hidden_emb.append(hidden_h.detach().cpu().numpy())
                 pass
-            logits, hidden_h = model(features, cluster_ids_x, cluster_centers)
+            logits, hidden_h = model(
+                features, cluster_ids_x, cluster_centers, att)
             # logits, hidden_h = model(features)
         loss = loss_fcn(logits[train_mask], labels[train_mask])
 
@@ -144,8 +148,11 @@ def main(args):
     print()
     acc = evaluate(model, features, labels, test_mask)
     print("Test accuracy {:.2%}".format(acc))
-    np.save(f'{args.dataset}_centroid_emb', np.array(centroid_emb))
-    np.save(f'{args.dataset}_hidden_emb', np.array(hidden_emb))
+    prefix = 'embedding'
+    np.save(Path(prefix, f'{args.dataset}_centroid_emb'),
+            np.array(centroid_emb))
+    np.save(Path(prefix, f'{args.dataset}_hidden_emb'), np.array(hidden_emb))
+    np.save(Path(prefix, f'{args.dataset}_att'), np.array(att))
 
 
 if __name__ == '__main__':
