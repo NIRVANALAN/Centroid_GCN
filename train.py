@@ -1,3 +1,4 @@
+from cluster import *  # import cluster
 import argparse
 import pathlib
 from pathlib import Path
@@ -12,8 +13,13 @@ from dgl import DGLGraph
 from dgl.data import register_data_args, load_data
 
 from models import create_model
+from models.utils import EarlyStopping
 
-from cluster import *  # import cluster
+
+def accuracy(logits, labels):
+    _, indices = torch.max(logits, dim=1)
+    correct = torch.sum(indices == labels)
+    return correct.item() * 1.0 / len(labels)
 
 
 def evaluate(model, features, labels, mask):
@@ -56,6 +62,8 @@ def main(args):
               val_mask.int().sum().item(),
               test_mask.int().sum().item()))
 
+    if args.early_stop:
+        stopper = EarlyStopping(patience=100)
     if args.gpu < 0:
         cuda = False
     else:
@@ -111,7 +119,7 @@ def main(args):
     # Step 1. initilization with GCN
     # init graph feat
     dur = []
-    centroid_emb, hidden_emb = [], []
+    centroid_emb, hidden_emb, cluster_ids = [], [], []
     att = []
     for epoch in range(args.n_epochs):
         model.train()
@@ -127,6 +135,7 @@ def main(args):
                     X=hidden_h.detach(), num_clusters=args.cluster_number, distance='cosine', method=args.cluster_method)  # TODO: fix zero norm embedding
                 centroid_emb.append(cluster_centers.detach().cpu().numpy())
                 hidden_emb.append(hidden_h.detach().cpu().numpy())
+                cluster_ids.append(cluster_ids_x.detach().cpu().numpy())
                 pass
             logits, hidden_h = model(
                 features, cluster_ids_x, cluster_centers, att)
@@ -140,10 +149,17 @@ def main(args):
 
         if epoch >= 3:
             dur.append(time.time() - t0)
-        acc = evaluate(model, features, labels, val_mask)
+        if args.fastmode:
+            val_acc = accuracy(logits[val_mask], labels[val_mask])
+        else:
+            val_acc = evaluate(model, features, labels, val_mask)
+            if args.early_stop:
+                if stopper.step(val_acc, model):
+                    break
+        # acc = evaluate(model, features, labels, val_mask)
         print("Epoch {:05d} | Time(s) {:.4f} | Loss {:.4f} | Accuracy {:.4f} | "
               "ETputs(KTEPS) {:.2f}". format(epoch, np.mean(dur), loss.item(),
-                                             acc, n_edges / np.mean(dur) / 1000))
+                                             val_acc, n_edges / np.mean(dur) / 1000))
 
     print()
     acc = evaluate(model, features, labels, test_mask)
@@ -153,6 +169,7 @@ def main(args):
             np.array(centroid_emb))
     np.save(Path(prefix, f'{args.dataset}_hidden_emb'), np.array(hidden_emb))
     np.save(Path(prefix, f'{args.dataset}_att'), np.array(att))
+    np.save(Path(prefix, f'{args.dataset}_cluster_ids'), np.array(cluster_ids))
 
 
 if __name__ == '__main__':
@@ -208,6 +225,8 @@ if __name__ == '__main__':
     #                     help="Number of clusters, for Reddit 1500 by default")
     # parser.add_argument("--batch_size", type=int, default=5000,
     #                     help="Batch size")
+    parser.add_argument('--early-stop', action='store_true', default=False,
+                        help="indicates whether to use early stop or not")
     args = parser.parse_args()
     print(args)
 

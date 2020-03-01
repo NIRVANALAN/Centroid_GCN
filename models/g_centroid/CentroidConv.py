@@ -1,6 +1,7 @@
 
 """Torch modules for graph attention networks(GAT)."""
 # pylint: disable= no-member, arguments-differ, invalid-name
+import time
 import torch as th
 from torch import nn
 import torch.nn.functional as F
@@ -8,6 +9,8 @@ import torch.nn.functional as F
 import dgl.function as fn
 from dgl.nn.pytorch import edge_softmax
 from dgl.nn.pytorch.utils import Identity
+
+from .utils import timeit
 
 # pylint: enable=W0235
 
@@ -111,19 +114,24 @@ class CentroidGATConv(nn.Module):
         h = self.feat_drop(feat)
         feat = self.fc(h).view(-1, self._num_heads, self._out_feats)
         if cluster_id is not None:
+            # start = time.time()
             cluster_centroid = cluster_centroid.view(
-                -1, self._num_heads, self._out_feats)
-            el = cluster_centroid * self.attn_l
-            el = el[cluster_id].sum(-1).unsqueeze(-1)
-            # el = (cluster_centroid *
-            #       self.attn_l)[cluster_id].sum(dim=-1).unsqueeze(-1)
-            er = (cluster_centroid *
-                  self.attn_r)[cluster_id].sum(dim=-1).unsqueeze(-1)
-            # el = (feat * self.attn_l).sum(dim=-1).unsqueeze(-1)
+                -1, self._num_heads, self._out_feats)  # [6*8*8] * [1,8,8]
+            # el = cluster_centroid * self.attn_l[cluster_id].sum(-1).unsqueeze(-1)
+            el = (cluster_centroid * self.attn_l)
+            er = (cluster_centroid * self.attn_r)
             # er = (feat * self.attn_r).sum(dim=-1).unsqueeze(-1)
+            # print(f'cluster el/er calculation time: {time.time() - start:.7f}')
+            er = er[cluster_id].sum(dim=-1).unsqueeze(-1)
+            el = el[cluster_id].sum(dim=-1).unsqueeze(-1)
+            # el = (feat * self.attn_l).sum(dim=-1).unsqueeze(-1)
         else:
-            el = (feat * self.attn_l).sum(dim=-1).unsqueeze(-1)
-            er = (feat * self.attn_r).sum(dim=-1).unsqueeze(-1)
+            # start = time.time()
+            el = (feat * self.attn_l)  # [3708*8*8] * [1,8,8]
+            er = (feat * self.attn_r)
+            # print(f'el/er calculation time: {time.time() - start:.7f}')
+            er = er.sum(dim=-1).unsqueeze(-1)
+            el = el.sum(dim=-1).unsqueeze(-1)
         graph.ndata.update({'ft': feat, 'el': el, 'er': er})
         # compute edge attention
         graph.apply_edges(fn.u_add_v('el', 'er', 'e'))

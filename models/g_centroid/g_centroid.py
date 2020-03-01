@@ -26,7 +26,7 @@ class GATCentroid(nn.Module):
                  feat_drop,
                  attn_drop,
                  negative_slope,
-                 residual):
+                 residual, batch_norm=False):
         super(GATCentroid, self).__init__()
         self.g = g
         self.num_layers = num_layers
@@ -46,6 +46,11 @@ class GATCentroid(nn.Module):
         self.gat_layers.append(CentroidGATConv(
             num_hidden * heads[-2], num_classes, heads[-1],
             feat_drop, attn_drop, negative_slope, residual, None))
+        if batch_norm:
+            self.batch_norm = [
+                nn.BatchNorm1d(num_hidden, affine=False, track_running_stats=False)] * num_layers
+        else:
+            self.batch_norm = None
 
     def forward(self, feat, cluster_id=None, cluster_centroid=None, stat=None):
         h = feat
@@ -53,6 +58,8 @@ class GATCentroid(nn.Module):
             h, embedding = self.gat_layers[l](self.g, h, cluster_id,
                                               cluster_centroid, stat)
             h = h.flatten(1)
+            if getattr(self, 'batch_norm'):
+                h = self.batch_norm[l](h)
             embedding = embedding.flatten(1)
         # output projection
         logits = self.gat_layers[-1](self.g, h).mean(1)
