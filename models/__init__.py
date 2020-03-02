@@ -1,7 +1,7 @@
 from .gcn import GCN
-from .gat import GAT
 from .g_centroid import GATCentroid
 from . import utils
+from .gat import GAT
 
 # TODO: add centroid-driven message passing graph net
 FACTORY = {

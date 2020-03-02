@@ -16,8 +16,8 @@ import torch
 import torch.nn.functional as F
 from dgl import DGLGraph
 from dgl.data import register_data_args, load_data
-from .gat import GAT
-from ..utils import EarlyStopping
+from gat import GAT
+from utils import EarlyStopping
 
 
 def accuracy(logits, labels):

@@ -25,7 +25,8 @@ def accuracy(logits, labels):
 def evaluate(model, features, labels, mask):
     model.eval()
     with torch.no_grad():
-        logits, _ = model(features)
+        # logits, _ = model(features)
+        logits = model(features)
         logits = logits[mask]
         labels = labels[mask]
         _, indices = torch.max(logits, dim=1)
@@ -79,7 +80,7 @@ def main(args):
     # graph preprocess and calculate normalization factor
     g = data.graph
     # add self loop
-    if args.self_loop:
+    if not args.no_self_loop:
         g.remove_edges_from(nx.selfloop_edges(g))
         g.add_edges_from(zip(g.nodes(), g.nodes()))
     g = DGLGraph(g)
@@ -121,14 +122,15 @@ def main(args):
     dur = []
     centroid_emb, hidden_emb, cluster_ids = [], [], []
     att = []
-    for epoch in range(args.n_epochs):
+    for epoch in range(args.epochs):
         model.train()
         if epoch >= 3:
             t0 = time.time()
         # cluster
         # forward
         if epoch < args.init_feat_epoch:
-            logits, hidden_h = model(features)
+            logits = model(features)
+            # logits, hidden_h = model(features)
         else:
             if epoch == args.init_feat_epoch or epoch % cluster_interval == 0:
                 cluster_ids_x, cluster_centers = cluster(
@@ -175,34 +177,22 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='GCN')
     register_data_args(parser)
-    parser.add_argument("--dropout", type=float, default=0.5,
-                        help="dropout probability")
+    # parser.add_argument("--dropout", type=float, default=0.5,
+    #                     help="dropout probability")
     parser.add_argument("--gpu", type=int, default=0,
                         help="gpu")
-    parser.add_argument("--lr", type=float, default=1e-2,
-                        help="learning rate")
-    parser.add_argument("--n-epochs", type=int, default=200,
-                        help="number of training epochs")
-    parser.add_argument("--n-hidden", type=int, default=16,
-                        help="number of hidden gcn units")
-    parser.add_argument("--n-layers", type=int, default=1,
-                        help="number of hidden gcn layers")
-    parser.add_argument("--weight-decay", type=float, default=5e-4,
-                        help="Weight for L2 loss")
-    parser.add_argument("--self-loop", action='store_true',
+    parser.add_argument("--no-self-loop", action='store_false',  # !MUST IN GAT
                         help="graph self-loop (default=False)")
-
+    # cluster
     parser.add_argument("--cluster_method", type=str, default='kmeans',
                         help="Cluster method, default=kmeans")
-    parser.add_argument("--cluster-interval", type=int, default=3,
+    parser.add_argument("--cluster-interval", type=int, default=25,
                         help="interval of calculating cluster centroid")
-    parser.add_argument("--cluster-number", type=int, default=30,
+    parser.add_argument("--cluster-number", type=int, default=6,
                         help="interval of calculating cluster centroid")
-
-    parser.add_argument("--in-drop", type=float, default=.6,
-                        help="input feature dropout")
-    parser.add_argument("--attn-drop", type=float, default=.6,
-                        help="attention dropout")
+    # attention
+    parser.add_argument("--epochs", type=int, default=200,
+                        help="number of training epochs")
     parser.add_argument("--num-heads", type=int, default=8,
                         help="number of hidden attention heads")
     parser.add_argument("--num-out-heads", type=int, default=1,
@@ -211,12 +201,24 @@ if __name__ == '__main__':
                         help="number of hidden layers")
     parser.add_argument("--num-hidden", type=int, default=8,
                         help="number of hidden units")
-    parser.add_argument('--negative-slope', type=float, default=0.2,
-                        help="the negative slope of leaky relu")
     parser.add_argument("--residual", action="store_true", default=False,
                         help="use residual connection")
+    parser.add_argument("--in-drop", type=float, default=.6,
+                        help="input feature dropout")
+    parser.add_argument("--attn-drop", type=float, default=.6,
+                        help="attention dropout")
+    parser.add_argument("--lr", type=float, default=0.005,
+                        help="learning rate")
+    parser.add_argument('--weight-decay', type=float, default=5e-4,
+                        help="weight decay")
+    parser.add_argument('--negative-slope', type=float, default=0.2,
+                        help="the negative slope of leaky relu")
+    parser.add_argument('--early-stop', action='store_true', default=False,
+                        help="indicates whether to use early stop or not")
+    parser.add_argument('--fastmode', action="store_true", default=False,
+                        help="skip re-evaluate the validation set")
 
-    parser.add_argument("--init-feat-epoch", type=int, default=10,
+    parser.add_argument("--init-feat-epoch", type=int, default=25,
                         help="stage 1 training epoch number")
     # MODEL
     parser.add_argument("--arch", type=str, default='gcn',
@@ -225,8 +227,6 @@ if __name__ == '__main__':
     #                     help="Number of clusters, for Reddit 1500 by default")
     # parser.add_argument("--batch_size", type=int, default=5000,
     #                     help="Batch size")
-    parser.add_argument('--early-stop', action='store_true', default=False,
-                        help="indicates whether to use early stop or not")
     args = parser.parse_args()
     print(args)
 
