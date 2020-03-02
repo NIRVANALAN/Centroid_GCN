@@ -25,8 +25,8 @@ def accuracy(logits, labels):
 def evaluate(model, features, labels, mask):
     model.eval()
     with torch.no_grad():
-        # logits, _ = model(features)
-        logits = model(features)
+        logits, _ = model(features)
+        # logits = model(features)
         logits = logits[mask]
         labels = labels[mask]
         _, indices = torch.max(logits, dim=1)
@@ -81,6 +81,7 @@ def main(args):
     g = data.graph
     # add self loop
     if not args.no_self_loop:
+        print('add self-loop')
         g.remove_edges_from(nx.selfloop_edges(g))
         g.add_edges_from(zip(g.nodes(), g.nodes()))
     g = DGLGraph(g)
@@ -129,8 +130,8 @@ def main(args):
         # cluster
         # forward
         if epoch < args.init_feat_epoch:
-            logits = model(features)
-            # logits, hidden_h = model(features)
+            # logits = model(features)
+            logits, hidden_h = model(features)
         else:
             if epoch == args.init_feat_epoch or epoch % cluster_interval == 0:
                 cluster_ids_x, cluster_centers = cluster(
@@ -181,7 +182,7 @@ if __name__ == '__main__':
     #                     help="dropout probability")
     parser.add_argument("--gpu", type=int, default=0,
                         help="gpu")
-    parser.add_argument("--no-self-loop", action='store_false',  # !MUST IN GAT
+    parser.add_argument("--no-self-loop", action='store_true',  # !MUST IN GAT
                         help="graph self-loop (default=False)")
     # cluster
     parser.add_argument("--cluster_method", type=str, default='kmeans',
