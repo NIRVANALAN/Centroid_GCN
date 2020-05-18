@@ -191,6 +191,7 @@ if __name__ == '__main__':
                         help="interval of calculating cluster centroid")
     parser.add_argument("--cluster-number", type=int, default=6,
                         help="interval of calculating cluster centroid")
+
     # attention
     parser.add_argument("--epochs", type=int, default=200,
                         help="number of training epochs")

@@ -113,27 +113,28 @@ class CentroidGATConv(nn.Module):
         graph = graph.local_var()  # return as graph can be used in fcuntion scope
         h = self.feat_drop(feat)
         feat = self.fc(h).view(-1, self._num_heads, self._out_feats)
-        # if cluster_id is not None:
-        #     # start = time.time()
-        #     cluster_centroid = cluster_centroid.view(
-        #         -1, self._num_heads, self._out_feats)  # [6*8*8] * [1,8,8]
-        #     # el = cluster_centroid * self.attn_l[cluster_id].sum(-1).unsqueeze(-1)
-        #     el = (cluster_centroid * self.attn_l)
-        #     er = (cluster_centroid * self.attn_r)
-        #     # er = (feat * self.attn_r).sum(dim=-1).unsqueeze(-1)
-        #     # print(f'cluster el/er calculation time: {time.time() - start:.7f}')
-        #     er = er[cluster_id].sum(dim=-1).unsqueeze(-1)
-        #     el = el[cluster_id].sum(dim=-1).unsqueeze(-1)
-        #     # el = (feat * self.attn_l).sum(dim=-1).unsqueeze(-1)
-        # else:
-        # start = time.time()
-
-        el = (feat * self.attn_l)  # [3708*8*8] * [1,8,8]
-        er = (feat * self.attn_r)
-        # print(f'el/er calculation time: {time.time() - start:.7f}')
-        el = el.sum(dim=-1).unsqueeze(-1)
-        er = er.sum(dim=-1).unsqueeze(-1)
-
+        if cluster_id is not None:
+            # start = time.time()
+            cluster_centroid = cluster_centroid.view(
+                -1, self._num_heads, self._out_feats)  # [6*8*8] * [1,8,8]
+            # el = cluster_centroid * self.attn_l[cluster_id].sum(-1).unsqueeze(-1)
+            el = (cluster_centroid * self.attn_l)
+            er = (cluster_centroid * self.attn_r)
+            # er = (feat * self.attn_r).sum(dim=-1).unsqueeze(-1)
+            # print(f'cluster el/er calculation time: {time.time() - start:.7f}')
+            er = er[cluster_id].sum(dim=-1).unsqueeze(-1)
+            el = el[cluster_id].sum(dim=-1).unsqueeze(-1)
+            # el = (feat * self.attn_l).sum(dim=-1).unsqueeze(-1)
+            # TODO test
+            # [3708*8*8] * [1,8,8]
+            # el += (feat * self.attn_l).sum(dim=-1).unsqueeze(-1)
+            # er += (feat * self.attn_r).sum(dim=-1).unsqueeze(-1)
+        else:
+            # start = time.time()
+            # [3708*8*8] * [1,8,8]
+            el = (feat * self.attn_l).sum(dim=-1).unsqueeze(-1)
+            er = (feat * self.attn_r).sum(dim=-1).unsqueeze(-1)
+            # print(f'el/er calculation time: {time.time() - start:.7f}')
         graph.ndata.update({'ft': feat, 'el': el, 'er': er})
         # compute edge attention
         graph.apply_edges(fn.u_add_v('el', 'er', 'e'))
